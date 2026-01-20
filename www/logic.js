@@ -1,3 +1,8 @@
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
+import { NativeBiometric } from "@capacitor-community/native-biometric";
+
+// Cek apakah sedang berjalan di HP (Native) atau Web
+const isNative = window.Capacitor && window.Capacitor.isNative;
 // Di bagian paling atas logic.js
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -695,8 +700,9 @@ function renderCurrent(curr) {
   const tempVal = Math.round(curr.temperature_2m);
   document.getElementById("mainTemp").innerText = tempVal + "°";
   document.getElementById("mainDesc").innerText = info.desc;
-  document.getElementById("mainIcon").className =
-    `fa-solid ${info.icon} text-5xl mb-4 ${info.color}`;
+  document.getElementById(
+    "mainIcon",
+  ).className = `fa-solid ${info.icon} text-5xl mb-4 ${info.color}`;
   document.getElementById("wind").innerText = curr.wind_speed_10m + " km/h";
   document.getElementById("humid-weather").innerText =
     curr.relative_humidity_2m + "%";
@@ -1006,8 +1012,8 @@ function setAppStatus(msg, type = "normal") {
     type === "success"
       ? "bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-lg text-center text-sm text-emerald-400 font-bold"
       : type === "error"
-        ? "bg-red-900/30 border border-red-500/30 p-3 rounded-lg text-center text-sm text-red-400 font-bold"
-        : "bg-slate-800 border border-slate-700 p-3 rounded-lg text-center text-sm text-slate-300";
+      ? "bg-red-900/30 border border-red-500/30 p-3 rounded-lg text-center text-sm text-red-400 font-bold"
+      : "bg-slate-800 border border-slate-700 p-3 rounded-lg text-center text-sm text-slate-300";
 }
 async function startCamera() {
   if (!isModelLoaded) {
@@ -1476,8 +1482,9 @@ function showInfoModal(title, msg, type) {
     mBg.className =
       "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-orange-500";
   }
-  document.getElementById("modal-buttons").innerHTML =
-    `<button onclick="closeModalAndReset()" class="w-full py-3 rounded-lg bg-slate-700 text-white font-bold hover:bg-slate-600">Tutup</button>`;
+  document.getElementById(
+    "modal-buttons",
+  ).innerHTML = `<button onclick="closeModalAndReset()" class="w-full py-3 rounded-lg bg-slate-700 text-white font-bold hover:bg-slate-600">Tutup</button>`;
   document.getElementById("global-modal").classList.add("active");
 }
 window.closeModalAndReset = function () {
@@ -2482,8 +2489,9 @@ function saveDashboardChanges() {
     remoteDashboards[index].type = newType;
     saveDashboards();
     document.getElementById("detail-remote-name").innerText = newName;
-    document.getElementById("detail-remote-type").innerText =
-      `${newBrand} - ${newType.toUpperCase()}`;
+    document.getElementById(
+      "detail-remote-type",
+    ).innerText = `${newBrand} - ${newType.toUpperCase()}`;
     closeEditDashboardModal();
     showInfoModal("Sukses", "Informasi Remote diperbarui.", "success");
   }
@@ -2600,7 +2608,6 @@ const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 const synthesis = window.speechSynthesis;
 let recognition;
-let isListening = !1;
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
   recognition.continuous = !1;
@@ -2648,9 +2655,59 @@ if (SpeechRecognition) {
 } else {
   alert("Browser Anda tidak mendukung Voice Command (Gunakan Chrome).");
 }
-function toggleVoiceCommand() {
-  if (isListening) stopVoiceCommand();
-  else recognition.start();
+// Variable global untuk status
+let isListening = false;
+
+async function toggleVoiceCommand() {
+  if (!isNative) {
+    // Fallback untuk Browser Laptop (Kode Lama Anda)
+    // ... (biarkan logika web speech api lama disini jika mau)
+    alert("Gunakan HP untuk fitur ini!");
+    return;
+  }
+
+  // LOGIKA UNTUK APLIKASI (APK)
+  if (isListening) {
+    await SpeechRecognition.stop();
+    isListening = false;
+    document.getElementById("voice-overlay").classList.add("hidden");
+  } else {
+    // Cek Izin Microphone
+    const { available } = await SpeechRecognition.available();
+    if (!available) {
+      alert("Fitur suara tidak tersedia di HP ini.");
+      return;
+    }
+
+    // Minta izin
+    const hasPermission = await SpeechRecognition.checkPermissions();
+    if (hasPermission.speechRecognition !== "granted") {
+      await SpeechRecognition.requestPermissions();
+    }
+
+    // Mulai Mendengarkan
+    isListening = true;
+    document.getElementById("voice-overlay").classList.remove("hidden");
+    document.getElementById("mic-icon").className =
+      "fa-solid fa-spinner fa-spin text-2xl";
+
+    SpeechRecognition.start({
+      language: "id-ID",
+      maxResults: 2,
+      prompt: "Katakan perintah...",
+      partialResults: true,
+      popup: false,
+    });
+
+    // Event saat suara masuk
+    SpeechRecognition.addListener("partialResults", (data) => {
+      if (data.matches && data.matches.length > 0) {
+        document.getElementById(
+          "voice-text-preview",
+        ).innerText = `"${data.matches[0]}"`;
+      }
+    });
+  }
 }
 function stopVoiceCommand() {
   console.log("⛔ Menghentikan Voice Command...");
@@ -3066,51 +3123,28 @@ function handleError() {
   }, 600);
 }
 async function verifyBiometric() {
-  if (!window.PublicKeyCredential) {
-    console.warn("Browser ini tidak mendukung fitur biometrik.");
+  // Jika di Web Browser Laptop (bukan APK)
+  if (!isNative) {
+    alert("Fitur ini khusus Aplikasi Android!");
     return;
   }
+
   try {
-    const available =
-      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if (!available) return;
-  } catch (e) {
-    console.error(e);
-    return;
-  }
-  try {
-    const challenge = new Uint8Array(32);
-    window.crypto.getRandomValues(challenge);
-    const publicKeyCredentialCreationOptions = {
-      publicKey: {
-        challenge: challenge,
-        rp: { name: "IoT Dashboard Login", id: window.location.hostname },
-        user: {
-          id: new Uint8Array(16),
-          name: "admin@iot",
-          displayName: "Admin Dashboard",
-        },
-        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required",
-          requireResidentKey: !1,
-        },
-        timeout: 60000,
-        attestation: "none",
-      },
-    };
-    console.log("Meminta akses biometrik...");
-    await navigator.credentials.create(publicKeyCredentialCreationOptions);
-    console.log("Biometrik Sukses!");
-    unlockApp();
-  } catch (err) {
-    console.error("Biometrik Gagal/Dibatalkan:", err);
-    if (err.name === "NotAllowedError" || err.name === "AbortError") {
-      handleError();
-    } else {
-      console.log("Silent error pada floating window (aman untuk diabaikan).");
+    const result = await NativeBiometric.verifyIdentity({
+      reason: "Scan sidik jari untuk membuka dashboard",
+      title: "Otentikasi",
+      subtitle: "Tempelkan jari Anda",
+      description: "Verifikasi identitas Anda",
+    });
+
+    if (result.success) {
+      console.log("Biometrik Sukses!");
+      unlockApp(); // Panggil fungsi pembuka kunci Anda
     }
+  } catch (error) {
+    console.error("Biometrik Gagal:", error);
+    // Jangan tampilkan alert error jika user hanya membatalkan
+    handleError(); // Panggil fungsi error visual Anda (getar/merah)
   }
 }
 document.addEventListener("keydown", (e) => {
