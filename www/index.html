@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang=id>
+<head>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Smart Dashboard IoT - Integrated V15.4</title>
+<link rel=icon type=image/png href=logoapk.png>
+<link rel=manifest href=manifest.json>
+<meta name=theme-color content=#000000>
+<meta name=apple-mobile-web-app-capable content=yes>
+<meta name=apple-mobile-web-app-status-bar-style content=black-translucent>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+<link rel=stylesheet href=style.css>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel=stylesheet>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js></script>
+<link rel=stylesheet href=https://unpkg.com/leaflet@1.9.4/dist/leaflet.css>
+<script src=https://unpkg.com/leaflet@1.9.4/dist/leaflet.js></script>
+<script src=https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js crossorigin=anonymous></script>
+</head>
+<body>
+<div class=scanlines></div>
+<div class=vignette></div>
+<canvas id=bg-canvas></canvas>
+<nav class=sidebar>
+<div class="mb-8 px-2 flex items-center gap-3">
+<i class="fa-solid fa-cube text-2xl text-emerald-500"></i>
+<span class="text-xl font-bold tracking-wide text-white">IoT Dash</span>
+</div>
+<div class="nav-item active" onclick='switchPage("page-absensi",this)'>
+<i class="fa-solid fa-users-viewfinder w-6"></i>
+<span>Scan Wajah</span>
+</div>
+<div class=nav-item onclick='switchPage("page-sensor",this)'>
+<i class="fa-solid fa-temperature-three-quarters w-6"></i>
+<span>Sensor Ruangan</span>
+</div>
+<div class=nav-item onclick='switchPage("page-control",this)'>
+<i class="fa-solid fa-gamepad w-6"></i>
+<span>Smart Control</span>
+</div>
+<div class=nav-item onclick='switchPage("page-remote",this)'>
+<i class="fa-solid fa-tower-broadcast w-6"></i>
+<span>IR Remote</span>
+</div>
+<div class=nav-item onclick='switchPage("page-hand",this)'>
+<i class="fa-solid fa-hand text-xl w-6"></i>
+<span>Hand Control</span>
+</div>
+<div class=nav-item onclick=openRfidModal()>
+<i class="fa-solid fa-id-card w-6"></i>
+<span>Register Kartu</span>
+</div>
+<div class=nav-item onclick='switchPage("page-cuaca",this)'>
+<i class="fa-solid fa-cloud-sun-rain w-6"></i>
+<span>Monitor Cuaca</span>
+</div>
+<div class="mt-auto mb-2 px-4 py-2 bg-slate-800 rounded-xl text-center border border-slate-700">
+<div class="text-[10px] text-slate-400">Waktu Server</div>
+<div id=live-clock class="text-xl font-bold text-emerald-400 font-mono">
+--:--:--
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-slate-700 text-xs text-slate-500">
+<p>Versi 15.4 Pro</p>
+<p>&copy; 2026 RIYAN</p>
+</div>
+</nav>
+<main class=main-content>
+<header class="md:hidden flex justify-between items-center mb-6 pb-4 border-b border-slate-700 sticky top-0 bg-[#0f172a]/90 backdrop-blur z-50 pt-4 px-5">
+<div class="flex items-center gap-3">
+<button id=btn-back-home onclick='switchPage("page-home")' class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white border border-slate-700 hidden">
+<i class="fa-solid fa-arrow-left"></i>
+</button>
+<h1 class="text-xl font-bold text-emerald-400" id=mobile-header-title>
+IoT Dashboard
+</h1>
+</div>
+<div id=header-status-dot class=mqtt-dot></div>
+</header>
+<section id=page-home class="page-section active-page">
+<div class="max-w-md mx-auto pt-8 px-4">
+<div class="text-center mb-8">
+<div class="flex justify-center mb-6">
+<div id=home-header-status class="px-4 py-2 rounded-full bg-slate-900/80 border border-slate-700 flex items-center gap-2 shadow-lg backdrop-blur-sm transition-all duration-500">
+<div class="mqtt-dot w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_red]" id=home-top-dot></div>
+<span id=home-top-text class="text-xs font-mono font-bold text-slate-300">Menghubungkan...</span>
+</div>
+</div>
+<div class="inline-flex items-center justify-center w-20 h-20 bg-slate-800 rounded-2xl mb-4 shadow-lg border border-slate-700">
+<i class="fa-solid fa-cube text-4xl text-emerald-500 animate-pulse"></i>
+</div>
+<h1 class="text-3xl font-bold text-white tracking-tight">
+IoT Dashboard
+</h1>
+<p class="text-slate-400 text-sm mt-1">
+Sistem Kontrol Terintegrasi
+</p>
+</div>
+<div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-6 shadow-lg">
+<h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-700 pb-2">
+Status Perangkat
+</h3>
+<div class=space-y-3>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<div id=status-dot-esp1 class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_red]"></div>
+<div>
+<div class="text-xs font-bold text-white">
+ESP 1: Keamanan
+</div>
+<div id=ssid-esp1 class="text-[10px] text-slate-500">
+Offline
+</div>
+</div>
+</div>
+<i class="fa-solid fa-shield-halved text-slate-600 text-xs"></i>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<div id=status-dot-esp2 class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_red]"></div>
+<div>
+<div class="text-xs font-bold text-white">
+ESP 2: Suhu & Kipas
+</div>
+<div id=ssid-esp2 class="text-[10px] text-slate-500">
+Offline
+</div>
+</div>
+</div>
+<i class="fa-solid fa-fan text-slate-600 text-xs"></i>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<div id=status-dot-esp3 class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_red]"></div>
+<div>
+<div class="text-xs font-bold text-white">ESP 3: RFID</div>
+<div id=ssid-esp3 class="text-[10px] text-slate-500">
+Offline
+</div>
+</div>
+</div>
+<i class="fa-solid fa-id-card text-slate-600 text-xs"></i>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<div id=status-dot-esp4 class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_red]"></div>
+<div>
+<div class="text-xs font-bold text-white">
+ESP 4: Remote IR
+</div>
+<div id=ssid-esp4 class="text-[10px] text-slate-500">
+Offline
+</div>
+</div>
+</div>
+<i class="fa-solid fa-tower-broadcast text-slate-600 text-xs"></i>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 pb-24">
+<div onclick='switchPage("page-absensi")' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg">
+<i class="fa-solid fa-users-viewfinder text-3xl text-emerald-400"></i>
+<span class="text-sm font-bold text-white">Scan Wajah</span>
+</div>
+<div onclick='switchPage("page-sensor")' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg">
+<i class="fa-solid fa-temperature-three-quarters text-3xl text-rose-400"></i>
+<span class="text-sm font-bold text-white">Monitor Suhu</span>
+</div>
+<div onclick='switchPage("page-control")' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg">
+<i class="fa-solid fa-gamepad text-3xl text-blue-400"></i>
+<span class="text-sm font-bold text-white">Smart Control</span>
+</div>
+<div onclick='switchPage("page-remote")' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg">
+<i class="fa-solid fa-tower-broadcast text-3xl text-orange-500"></i>
+<span class="text-sm font-bold text-white">IR Remote</span>
+</div>
+<div onclick='switchPage("page-hand")' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg">
+<i class="fa-solid fa-hand text-3xl text-yellow-400"></i>
+<span class="text-sm font-bold text-white">Hand Control</span>
+</div>
+<div onclick=openRfidModal() class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg">
+<i class="fa-solid fa-id-card text-3xl text-purple-400"></i>
+<span class="text-sm font-bold text-white">Register RFID</span>
+</div>
+<div onclick='switchPage("page-cuaca")' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer shadow-lg col-span-2">
+<i class="fa-solid fa-cloud-sun-rain text-3xl text-sky-400"></i>
+<span class="text-sm font-bold text-white">Info Cuaca</span>
+</div>
+</div>
+</div>
+</section>
+<section id=page-absensi class=page-section>
+<div class="max-w-md mx-auto flex flex-col gap-5 px-4">
+<div id=app-status class="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg text-center text-sm text-blue-300 transition-all duration-300">
+<i class="fa-solid fa-spinner fa-spin mr-2"></i> Menyiapkan AI...
+</div>
+<div class=camera-box>
+<div id=error-overlay class=error-overlay>
+<div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+<i class="fa-solid fa-user-xmark text-3xl text-white"></i>
+</div>
+<h3 class="text-xl font-bold text-white mb-1">TIDAK ADA WAJAH</h3>
+<button onclick=hideOverlays() class="bg-white text-red-600 px-6 py-2 rounded-full font-bold text-sm mt-4 hover:bg-gray-200">
+COBA LAGI
+</button>
+</div>
+<div id=multi-face-overlay class=error-overlay>
+<div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+<i class="fa-solid fa-users text-3xl text-white"></i>
+</div>
+<h3 class="text-xl font-bold text-white mb-1">BANYAK WAJAH</h3>
+<button onclick=hideOverlays() class="bg-white text-red-600 px-6 py-2 rounded-full font-bold text-sm mt-4 hover:bg-gray-200">
+ULANGI
+</button>
+</div>
+<div id=boundary-overlay class=warning-overlay>
+<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg">
+<i class="fa-solid fa-crop-simple text-3xl text-orange-600"></i>
+</div>
+<h3 class="text-xl font-bold text-white mb-1">WAJAH TERPOTONG</h3>
+<button onclick=hideOverlays() class="bg-white text-orange-600 px-6 py-2 rounded-full font-bold text-sm mt-4 hover:bg-gray-200">
+MENGERTI
+</button>
+</div>
+<div id=initial-placeholder class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900">
+<img src=https://img.icons8.com/ios-filled/100/22c55e/face-id.png class="w-24 h-24 mb-4 opacity-90 animate-pulse drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+<p class="text-slate-400 text-sm">KAMERA SIAGA</p>
+</div>
+<video id=video autoplay muted playsinline style=display:none></video>
+<canvas id=snapshot-canvas style=display:none></canvas>
+<div id=scan-loading class="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center hidden">
+<div class="w-full absolute top-1/2 h-0.5 bg-emerald-400 shadow-[0_0_20px_#34d399] animate-[scan_1.5s_ease-in-out_infinite]"></div>
+<p class="text-emerald-400 font-bold text-sm mt-8 tracking-widest">
+ANALISIS...
+</p>
+</div>
+</div>
+<div class="flex flex-col gap-3">
+<button id=capture-btn class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-900/40 transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50" disabled>
+<i class="fa-solid fa-camera"></i> SCAN WAJAH
+</button>
+<div class="flex gap-2 justify-center mt-2">
+<button id=toggle-cam-btn class="w-10 h-10 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white transition-all">
+<i class="fa-solid fa-video-slash"></i>
+</button>
+<button id=light-btn class="w-10 h-10 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white">
+<i class="fa-solid fa-lightbulb"></i>
+</button>
+<button id=help-btn class="w-10 h-10 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white">
+<i class="fa-solid fa-circle-question"></i>
+</button>
+</div>
+<div class="bg-slate-800 p-4 rounded-lg border border-slate-700 mt-2">
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs font-bold uppercase text-slate-500">Terdaftar (<span id=count-display>0</span>)</span>
+<span class="text-[10px] text-slate-600 italic">Reset via Telegram</span>
+</div>
+<ul id=user-list class="space-y-2 max-h-32 overflow-y-auto pr-1"></ul>
+<button id=btn-sync-face onclick=syncFacesToSheet() class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs py-2 rounded transition border border-slate-600 border-dashed">
+<i class="fa-solid fa-cloud-arrow-up mr-1"></i> Sync ke Spreadsheet
+</button>
+</div>
+</div>
+</div>
+</section>
+<section id=page-sensor class=page-section>
+<div class="max-w-2xl mx-auto space-y-6 px-4">
+<div class=text-center>
+<h2 class="text-3xl font-light tracking-widest mb-2 text-white">
+MONITORING RUANGAN
+</h2>
+<div id=mqtt-status-bar class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-slate-800 text-xs text-slate-400 border border-slate-700">
+<div class=mqtt-dot id=status-dot></div>
+<span id=status-text>Menghubungkan Server...</span>
+</div>
+</div>
+<div class="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+<h3 class="text-emerald-400 font-bold mb-6 text-center border-b border-slate-700 pb-2 tracking-wider">
+SUHU & KELEMBABAN (DHT22)
+</h3>
+<div class="grid grid-cols-2 gap-6">
+<div class="bg-slate-800 rounded-2xl p-6 flex flex-col items-center shadow-lg border border-slate-700/50">
+<div class="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center mb-2">
+<i class="fa-solid fa-temperature-three-quarters text-2xl text-rose-500"></i>
+</div>
+<div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
+Temperature
+</div>
+<div class="flex items-start mt-2">
+<span class="text-5xl font-bold text-white" id=temp2>--</span>
+<span class="text-lg text-rose-500 font-bold mt-1">°C</span>
+</div>
+</div>
+<div class="bg-slate-800 rounded-2xl p-6 flex flex-col items-center shadow-lg border border-slate-700/50">
+<div class="w-12 h-12 rounded-full bg-sky-500/20 flex items-center justify-center mb-2">
+<i class="fa-solid fa-droplet text-2xl text-sky-400"></i>
+</div>
+<div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
+Humidity
+</div>
+<div class="flex items-start mt-2">
+<span class="text-5xl font-bold text-white" id=hum2>--</span>
+<span class="text-lg text-sky-400 font-bold mt-1">%</span>
+</div>
+</div>
+</div>
+<div class="text-center mt-4 text-[10px] text-slate-500 italic">
+Data diperbarui setiap 5 detik
+</div>
+</div>
+</div>
+</section>
+<section id=page-cuaca class=page-section>
+<div class="max-w-7xl mx-auto space-y-4 md:space-y-6 px-4">
+<div class="flex flex-col md:flex-row justify-between items-center gap-4 glass p-4 relative z-0">
+<div class="flex items-center gap-3 w-full md:w-auto z-0">
+<div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+<i class="fa-solid fa-bolt text-white"></i>
+</div>
+<div>
+<h1 class="font-bold text-lg text-white">WeatherPro</h1>
+<p class="text-[10px] text-blue-300">LIVE DATA</p>
+</div>
+</div>
+<div class="relative w-full md:w-80 group">
+<input id=searchInput placeholder="Cari lokasi..." autocomplete=off class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+<i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500"></i>
+<div id=searchResults class="hidden absolute top-full left-0 w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-60 overflow-y-auto"></div>
+</div>
+<button onclick=getMyLocation() class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm shadow-lg">
+<i class="fa-solid fa-location-crosshairs mr-2"></i>Lokasi Saya
+</button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+<div class="lg:col-span-4 space-y-4">
+<div class="glass p-5 relative overflow-hidden">
+<div class="flex items-start gap-2 mb-6">
+<i class="fa-solid fa-location-dot text-red-500 mt-1 animate-bounce"></i>
+<div>
+<h2 id=locName class="text-xl font-bold text-white">
+Mendeteksi...
+</h2>
+<p id=locSub class="text-xs text-gray-400">GPS Area</p>
+</div>
+</div>
+<div class="text-center py-4">
+<i id=mainIcon class="fa-solid fa-circle-notch fa-spin text-5xl text-gray-500 mb-4"></i>
+<span id=mainTemp class="text-6xl font-bold text-white block">-°</span>
+<span id=mainDesc class=text-blue-300>Loading...</span>
+</div>
+<div class="grid grid-cols-3 gap-2 mt-6">
+<div class="bg-slate-900/40 p-2 rounded text-center">
+<i class="fa-solid fa-wind text-gray-400 text-xs"></i><span id=wind class="block font-bold text-white text-sm">-</span>
+</div>
+<div class="bg-slate-900/40 p-2 rounded text-center">
+<i class="fa-solid fa-droplet text-blue-400 text-xs"></i><span id=humid-weather class="block font-bold text-white text-sm">-</span>
+</div>
+<div class="bg-slate-900/40 p-2 rounded text-center">
+<i class="fa-solid fa-eye text-green-400 text-xs"></i><span id=vis class="block font-bold text-white text-sm">-</span>
+</div>
+</div>
+<div class="mt-4 border-t border-white/10 pt-4">
+<h4 class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wider">
+Prediksi Per Jam
+</h4>
+<div id=hourly-container class=hourly-scroll>
+<div class="text-[10px] text-gray-500 w-full text-center">
+Memuat...
+</div>
+</div>
+</div>
+</div>
+<div id=mapContainer class="glass p-1 h-64 relative">
+<div id=map class="w-full h-full rounded-lg z-0"></div>
+<button onclick=toggleMapSize() class="absolute top-3 right-3 z-[400] bg-black/70 text-white w-8 h-8 rounded flex items-center justify-center">
+<i id=resizeIcon class="fa-solid fa-expand"></i>
+</button>
+</div>
+</div>
+<div class="lg:col-span-8 glass p-4 flex flex-col h-full">
+<div class="flex justify-between items-end mb-4 border-b border-white/5 pb-2">
+<h3 class="text-lg font-bold text-white">Prakiraan 16 Hari</h3>
+<div id=currentDateStr class="text-xs text-blue-400 font-bold"></div>
+</div>
+<div class="calendar-wrapper flex-grow">
+<div class="grid grid-cols-7 gap-1 min-w-[500px] mb-2 text-center text-[10px] text-gray-500 font-bold">
+<div>MINGGU</div>
+<div>SENIN</div>
+<div>SELASA</div>
+<div>RABU</div>
+<div>KAMIS</div>
+<div>JUMAT</div>
+<div>SABTU</div>
+</div>
+<div id=calendarGrid class="grid grid-cols-7 gap-1 bg-slate-700/30 rounded overflow-hidden min-w-[500px]"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id=page-control class=page-section>
+<div class="max-w-2xl mx-auto space-y-6 px-4">
+<div class=text-center>
+<h2 class="text-3xl font-light tracking-widest mb-2 text-white">
+PUSAT KONTROL
+</h2>
+<p class="text-slate-400 text-sm">Manajemen Kipas & Keamanan</p>
+</div>
+<div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+<div class="flex items-center gap-3 mb-4 border-b border-slate-700 pb-2">
+<div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400">
+<i class="fa-solid fa-fan text-xl animate-spin-slow"></i>
+</div>
+<h3 class="text-lg font-bold text-white">Kecepatan Kipas</h3>
+</div>
+<div class="grid grid-cols-4 gap-2 mb-2">
+<button id=btn-fan-1 onclick=controlFan(1) class="py-3 rounded-lg bg-slate-700 text-slate-200 font-bold transition duration-200">
+1
+</button>
+<button id=btn-fan-2 onclick=controlFan(2) class="py-3 rounded-lg bg-slate-700 text-slate-200 font-bold transition duration-200">
+2
+</button>
+<button id=btn-fan-3 onclick=controlFan(3) class="py-3 rounded-lg bg-slate-700 text-slate-200 font-bold transition duration-200">
+3
+</button>
+<button id=btn-fan-0 onclick=controlFan(0) class="py-3 rounded-lg bg-red-900/50 text-red-200 font-bold transition duration-200 border border-red-800">
+OFF
+</button>
+</div>
+</div>
+<div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+<div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-2">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-clock text-blue-400"></i>
+<h3 class="text-lg font-bold text-white">Jadwal Otomatis</h3>
+</div>
+<button onclick=openScheduleModal() class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition">
+<i class="fa-solid fa-plus"></i> Tambah
+</button>
+</div>
+<ul id=schedule-list class=space-y-2>
+<li class="text-center text-xs text-slate-500 py-4 italic">
+Memuat jadwal cloud...
+</li>
+</ul>
+</div>
+<div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+<div class="flex items-center gap-3 mb-4 border-b border-slate-700 pb-2">
+<div class="w-10 h-10 bg-rose-500/20 rounded-lg flex items-center justify-center text-rose-400">
+<i class="fa-solid fa-shield-halved text-xl"></i>
+</div>
+<h3 class="text-lg font-bold text-white">Sistem Keamanan</h3>
+</div>
+<div class=space-y-3>
+<div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-lines-leaning text-red-500"></i>
+<span class="text-sm text-slate-300">Sensor Laser</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type=checkbox id=toggle-laser class="sr-only peer" onchange='toggleSecurity("laser",this.checked)'>
+<div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-rose-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+<div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-door-closed text-blue-500"></i>
+<span class="text-sm text-slate-300">Kunci Pintu</span>
+</div>
+<div class="flex gap-2">
+<button onclick='controlDoor("UNLOCK")' class="text-xs bg-emerald-600 px-3 py-1 rounded text-white">
+BUKA
+</button>
+<button onclick='controlDoor("LOCK")' class="text-xs bg-red-600 px-3 py-1 rounded text-white">
+KUNCI
+</button>
+</div>
+</div>
+<div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-rss text-orange-500"></i>
+<span class="text-sm text-slate-300">Sensor Gerak (IR)</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type=checkbox id=toggle-ir class="sr-only peer" onchange='toggleSecurity("ir",this.checked)'>
+<div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-orange-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+<div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-ruler-horizontal text-purple-500"></i>
+<span class="text-sm text-slate-300">Sensor Jarak (HC)</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type=checkbox id=toggle-hc class="sr-only peer" onchange='toggleSecurity("hc",this.checked)'>
+<div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-purple-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+<div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-fire text-orange-600 animate-pulse"></i>
+<span class="text-sm text-slate-300">Detektor Api</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type=checkbox id=toggle-api class="sr-only peer" onchange='toggleSecurity("api",this.checked)'>
+<div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-orange-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id=page-remote class=page-section>
+<div class="max-w-md mx-auto relative min-h-screen px-4">
+<div id=view-remote-list class="space-y-6 fade-in">
+<div class=text-center>
+<h2 class="text-3xl font-light tracking-widest mb-2 text-white">
+SMART REMOTES
+</h2>
+<p class="text-slate-400 text-sm">
+Pilih atau Tambah Remote Kontrol
+</p>
+</div>
+<div onclick=openAddDashboardModal() class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 p-5 rounded-2xl shadow-lg cursor-pointer transform transition active:scale-95 flex items-center justify-between group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white">
+<i class="fa-solid fa-plus text-xl"></i>
+</div>
+<div class=text-left>
+<h3 class="font-bold text-white text-lg">Buat Remote Baru</h3>
+<p class="text-emerald-100 text-xs">
+TV / AC / Kipas / Lampu
+</p>
+</div>
+</div>
+<i class="fa-solid fa-chevron-right text-white/50 group-hover:translate-x-1 transition"></i>
+</div>
+<div id=dashboard-list class="grid grid-cols-1 gap-4 pb-24"></div>
+</div>
+<div id=view-remote-detail class="hidden space-y-6 pb-24">
+<div class="flex items-center justify-between mb-4 bg-slate-800/50 p-3 rounded-xl backdrop-blur-sm sticky top-0 z-20 border-b border-slate-700">
+<button onclick=backToDashboardList() class="w-10 h-10 rounded-full bg-slate-700 text-white flex items-center justify-center hover:bg-slate-600 transition">
+<i class="fa-solid fa-arrow-left"></i>
+</button>
+<div class=text-center>
+<h3 id=detail-remote-name class="font-bold text-white text-lg leading-none">
+Nama Remote
+</h3>
+<span id=detail-remote-type class="text-[10px] text-emerald-400 uppercase tracking-widest">TIPE</span>
+</div>
+<div class="flex gap-2">
+<button onclick=openEditDashboardModal() class="w-10 h-10 rounded-full bg-yellow-600/30 text-yellow-400 flex items-center justify-center hover:bg-yellow-600 hover:text-white transition">
+<i class="fa-solid fa-pen-to-square"></i>
+</button>
+<button onclick=deleteCurrentDashboard() class="w-10 h-10 rounded-full bg-red-900/30 text-red-400 flex items-center justify-center hover:bg-red-600 hover:text-white transition">
+<i class="fa-solid fa-trash-can"></i>
+</button>
+</div>
+</div>
+<div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
+<div class="text-center mb-4 relative z-10">
+<div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-900 border border-slate-700 mb-2 shadow-inner">
+<i class="fa-solid fa-wifi text-xl text-emerald-500 animate-pulse"></i>
+</div>
+<p class="text-xs text-slate-400">
+Arahkan remote fisik ke alat & tekan tombol
+</p>
+</div>
+<div class="bg-black/40 p-3 rounded-xl border border-emerald-500/30 text-center mb-4 backdrop-blur-sm min-h-[80px] flex flex-col justify-center items-center">
+<h2 id=scanned-code-display class="text-sm md:text-base font-mono text-white font-bold tracking-wider break-words w-full px-2">
+Menunggu Sinyal...
+</h2>
+<div id=raw-size-info class="text-[9px] text-slate-500 mt-1 font-mono">
+Buffer Kosong
+</div>
+</div>
+<div class="flex flex-col gap-3">
+<input id=new-remote-name placeholder="Nama Tombol (Contoh: Power)" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white text-sm focus:border-emerald-500 outline-none transition-all">
+<button onclick=saveLearnedButton() class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white py-3 rounded-xl font-bold shadow-lg shadow-emerald-900/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+<i class="fa-solid fa-plus"></i> TAMBAH TOMBOL
+</button>
+</div>
+</div>
+<div class="flex items-center justify-between px-2">
+<span class="text-xs font-bold text-slate-400 uppercase">Daftar Tombol</span>
+<span class="text-[10px] text-slate-500" id=total-buttons-detail>0 Items</span>
+</div>
+<div id=custom-buttons-list class="grid grid-cols-2 gap-3"></div>
+</div>
+</div>
+</section>
+<div id=add-dashboard-modal class=modal-overlay>
+<div class="modal-box bg-slate-800 border-slate-600 w-full max-w-sm text-left">
+<div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+<h3 class="text-lg font-bold text-white">Buat Remote Baru</h3>
+<button onclick=closeAddDashboardModal() class="text-slate-400 hover:text-white">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+<div class=space-y-4>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Nama Remote</label>
+<input id=dash-name placeholder="Contoh: TV Ruang Tamu" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none">
+</div>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Jenis Perangkat</label>
+<select id=dash-type class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none appearance-none">
+<option value=tv>TV / Televisi</option>
+<option value=ac>AC / Pendingin</option>
+<option value=fan>Kipas Angin</option>
+<option value=light>Lampu Pintar</option>
+<option value=speaker>Speaker / Audio</option>
+<option value=other>Lainnya (Universal)</option>
+</select>
+</div>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Merk (Opsional)</label>
+<input id=dash-brand placeholder="Contoh: Samsung, LG..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none">
+</div>
+<button onclick=createNewDashboard() class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-lg font-bold shadow-lg mt-2">
+Buat Remote
+</button>
+</div>
+</div>
+</div>
+<section id=page-hand class=page-section>
+<div class="max-w-md mx-auto flex flex-col gap-5 px-4">
+<div class="text-center mb-2">
+<h2 class="text-2xl font-bold text-white tracking-widest">
+HAND CONTROL
+</h2>
+<p class="text-xs text-blue-400">AI Gesture Recognition</p>
+</div>
+<div class="camera-box relative border-2 border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.3)] bg-black">
+<video id="hand-video" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 rounded-2xl" playsinline style="display:none"></video>
+<canvas id="hand-canvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 rounded-2xl"></canvas>
+<div id=hand-placeholder class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-10">
+<i class="fa-solid fa-hand-sparkles text-6xl text-blue-500 mb-4 animate-pulse"></i>
+<p class="text-slate-400 text-sm">KAMERA OFF</p>
+</div>
+<div id=hand-loading class="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center hidden">
+<div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+<p class="text-blue-400 font-bold text-xs">MEMUAT AI...</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
+<div class="text-[10px] text-slate-400 uppercase">Total Jari</div>
+<div id=hand-count-display class="text-4xl font-bold text-blue-400 mt-1">
+-
+</div>
+</div>
+<div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
+<div class="text-[10px] text-slate-400 uppercase">Status</div>
+<div id=hand-status-text class="text-sm font-bold text-white mt-3">
+Menunggu...
+</div>
+</div>
+</div>
+<button id=toggle-hand-btn onclick=toggleHandCamera() class="bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/40 transition-transform active:scale-95 flex items-center justify-center gap-2">
+<i class="fa-solid fa-power-off"></i> AKTIFKAN KAMERA
+</button>
+<div class="bg-slate-800/50 p-3 rounded-lg border border-slate-700 text-[10px] text-slate-400">
+<p class="font-bold text-slate-300 mb-1">Panduan Gestur:</p>
+<ul class="list-disc pl-4 space-y-1">
+<li>☝️ <b>1 Jari:</b> Kipas Speed 1</li>
+<li>✌️ <b>2 Jari:</b> Kipas Speed 2</li>
+<li>🤟 <b>3 Jari:</b> Kipas Speed 3</li>
+<li>🖐 <b>4 Jari:</b> Kipas OFF</li>
+<li>✋ <b>5 Jari:</b> Buka Pintu (10 Detik)</li>
+</ul>
+</div>
+</div>
+</section>
+<footer class=global-footer>
+<p class=footer-text>
+Created with by &copy;
+<span class=footer-highlight>RIYAN</span> 2026
+</p>
+<div class=footer-line></div>
+<p class="text-[10px] text-slate-600 mt-2">
+IoT System Integrated Versi 15.4 Pro
+</p>
+</footer>
+</main>
+<div id=flash-overlay></div>
+<div id=global-modal class=modal-overlay>
+<div class=modal-box>
+<div id=modal-icon-bg class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+<i id=modal-icon></i>
+</div>
+<h3 class="text-xl font-bold text-white mb-2" id=modal-title>
+Judul
+</h3>
+<div class="text-slate-400 text-sm mb-6 leading-relaxed" id=modal-msg>
+Pesan.
+</div>
+<div class="flex gap-3 justify-center" id=modal-buttons></div>
+</div>
+</div>
+<div id=register-modal class=modal-overlay>
+<div class="modal-box bg-slate-800 border-slate-600">
+<div class="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+<i class="fa-solid fa-user-plus text-3xl text-emerald-400"></i>
+</div>
+<h3 class="text-xl font-bold text-white mb-1">Wajah Baru</h3>
+<input id=name-input placeholder="Masukkan Nama Lengkap" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-center text-white mb-4 mt-4">
+<button id=save-btn class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-bold text-white mb-3">
+Simpan Wajah
+</button>
+<button onclick=resetToCamera() class="text-slate-400 text-sm underline">
+Batal
+</button>
+</div>
+</div>
+<div id=schedule-modal class=modal-overlay>
+<div class="modal-box bg-slate-800 border-slate-600 text-left w-full max-w-sm">
+<div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+<h3 class="text-lg font-bold text-white" id=schedule-modal-title>
+Tambah Jadwal
+</h3>
+<button onclick=closeScheduleModal() class="text-slate-400 hover:text-white">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+<div class=space-y-4>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="text-xs text-slate-400 block mb-1">Jam</label>
+<input type=time id=sched-time class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm focus:border-emerald-500 outline-none">
+</div>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Aksi</label>
+<select id=sched-action class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm focus:border-emerald-500 outline-none">
+<option value=1>Speed 1 (Pelan)</option>
+<option value=2>Speed 2 (Sedang)</option>
+<option value=3>Speed 3 (Kencang)</option>
+<option value=0>MATI (OFF)</option>
+</select>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-2">
+<label class="text-xs text-slate-400 block">Pilih Hari</label>
+<label class="flex items-center cursor-pointer gap-2">
+<input type=checkbox onchange=toggleAllDays(this) class="w-3 h-3 rounded border-slate-600 bg-slate-900 text-emerald-600 focus:ring-0">
+<span class="text-[10px] text-emerald-400 font-bold">Pilih Semua</span>
+</label>
+</div>
+<div class="flex justify-between gap-1">
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=1><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Sen</span></label>
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=2><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Sel</span></label>
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=3><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Rab</span></label>
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=4><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Kam</span></label>
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=5><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Jum</span></label>
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=6><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Sab</span></label>
+<label class=cursor-pointer><input type=checkbox class="day-chk hidden peer" value=0><span class="block w-8 h-8 rounded bg-slate-700 text-xs flex items-center justify-center text-slate-400 peer-checked:bg-emerald-600 peer-checked:text-white transition">Min</span></label>
+</div>
+</div>
+<button onclick=saveSchedule() id=btn-save-schedule class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-lg font-bold text-sm mt-2">
+Simpan Jadwal
+</button>
+</div>
+</div>
+</div>
+<button id=btn-voice-command onclick=toggleVoiceCommand() class="fixed bottom-24 right-5 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-500 rounded-full shadow-lg shadow-blue-500/50 text-white z-[2000] flex items-center justify-center transition-transform active:scale-90 border-2 border-white/20">
+<i id=mic-icon class="fa-solid fa-microphone text-2xl"></i>
+</button>
+<div id=voice-overlay class="fixed inset-0 bg-black/80 z-[3000] hidden flex flex-col items-center justify-center transition-opacity">
+<div class=relative>
+<div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div>
+<div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center relative z-10 shadow-[0_0_30px_#2563eb]">
+<i class="fa-solid fa-microphone-lines text-5xl text-white animate-pulse"></i>
+</div>
+</div>
+<h3 class="text-white font-bold text-xl mt-8 tracking-widest">
+MENDENGARKAN...
+</h3>
+<p id=voice-text-preview class="text-blue-300 text-sm mt-2 italic">
+"Buka Pintu..."
+</p>
+<button onclick=stopVoiceCommand() class="mt-8 px-6 py-2 rounded-full bg-slate-700 text-white text-sm hover:bg-slate-600">
+Batal
+</button>
+</div>
+<div id=youtube-player class="fixed bottom-0 right-0 w-1 h-1 opacity-10 pointer-events-none -z-50"></div>
+<script src=https://www.youtube.com/iframe_api></script>
+<div id=rfid-modal class="modal-overlay px-4">
+<div class="modal-box bg-slate-800 border-slate-600 w-full max-w-sm text-left">
+<div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+<h3 class="text-lg font-bold text-white">Kelola Kartu RFID</h3>
+<button onclick=closeRfidModal() class="text-slate-400 hover:text-white">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+<div class=space-y-4>
+<div>
+<label class="text-xs text-slate-400 block mb-1">UID Kartu</label>
+<input id=rfid-uid placeholder="Contoh: D9 4D 79 00" class="w-full bg-slate-900 border border-slate-600 rounded p-3 text-white focus:border-blue-500 outline-none font-mono uppercase">
+</div>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Nama Pemilik</label>
+<input id=rfid-name placeholder="Nama User" class="w-full bg-slate-900 border border-slate-600 rounded p-3 text-white focus:border-blue-500 outline-none">
+</div>
+<button onclick=saveNewCard() id=btn-save-rfid class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold shadow-lg shadow-blue-900/50 transition-all active:scale-95">
+<i class="fa-solid fa-save mr-2"></i>Simpan Kartu Baru
+</button>
+<div class="pt-4 mt-2 border-t border-slate-700">
+<p class="text-[10px] text-slate-500 text-center mb-2 italic">
+Data Spreadsheet dihapus manual? Tekan tombol di bawah untuk update alat.
+</p>
+<button onclick=forceSync() class="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded-lg font-bold text-sm shadow-lg shadow-yellow-900/30 transition-all active:scale-95">
+<i class="fa-solid fa-rotate mr-2"></i>Sinkronisasi Database
+</button>
+</div>
+</div>
+</div>
+</div>
+<div id=edit-remote-modal class=modal-overlay>
+<div class="modal-box bg-slate-800 border-slate-600 w-full max-w-sm text-left">
+<div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+<h3 class="text-lg font-bold text-white">
+<i class="fa-solid fa-pen-to-square mr-2 text-yellow-400"></i>Edit Tombol
+</h3>
+<button onclick=closeEditRemoteModal() class="text-slate-400 hover:text-white">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+<div class=space-y-4>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Nama Baru</label>
+<input id=edit-remote-input placeholder="Nama Tombol" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:border-yellow-500 outline-none transition-all">
+<input type=hidden id=edit-remote-id>
+</div>
+<div class="flex gap-2 pt-2">
+<button onclick=closeEditRemoteModal() class="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 font-bold hover:bg-slate-600 transition">
+Batal
+</button>
+<button onclick=saveRemoteNameChange() class="flex-1 py-3 rounded-xl bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition shadow-lg shadow-yellow-900/40">
+Update
+</button>
+</div>
+</div>
+</div>
+</div>
+<div id=edit-dashboard-modal class=modal-overlay>
+<div class="modal-box bg-slate-800 border-slate-600 w-full max-w-sm text-left">
+<div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+<h3 class="text-lg font-bold text-white">
+<i class="fa-solid fa-pen-nib text-yellow-400 mr-2"></i>Edit Remote
+</h3>
+<button onclick=closeEditDashboardModal() class="text-slate-400 hover:text-white">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+<div class=space-y-4>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Nama Remote</label>
+<input id=edit-dash-name class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-yellow-500 outline-none">
+</div>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Merk / Brand</label>
+<input id=edit-dash-brand class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-yellow-500 outline-none">
+</div>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Jenis Perangkat</label>
+<select id=edit-dash-type class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-yellow-500 outline-none appearance-none">
+<option value=tv>TV / Televisi</option>
+<option value=ac>AC / Pendingin</option>
+<option value=fan>Kipas Angin</option>
+<option value=light>Lampu Pintar</option>
+<option value=speaker>Speaker / Audio</option>
+<option value=other>Lainnya (Universal)</option>
+</select>
+</div>
+<button onclick=saveDashboardChanges() class="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-3 rounded-lg font-bold shadow-lg mt-2">
+Simpan Perubahan
+</button>
+</div>
+</div>
+</div>
+<div id=edit-button-modal class=modal-overlay>
+<div class="modal-box bg-slate-800 border-slate-600 w-full max-w-sm text-left">
+<div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+<h3 class="text-lg font-bold text-white">
+<i class="fa-solid fa-keyboard text-yellow-400 mr-2"></i>Edit Tombol
+</h3>
+<button onclick=closeEditButtonModal() class="text-slate-400 hover:text-white">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+<div class=space-y-4>
+<div>
+<label class="text-xs text-slate-400 block mb-1">Nama Tombol Baru</label>
+<input id=edit-btn-name placeholder="Contoh: Power ON" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-yellow-500 outline-none">
+<input type=hidden id=edit-btn-id>
+</div>
+<button onclick=saveButtonChanges() class="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-3 rounded-lg font-bold shadow-lg mt-2">
+Update Nama
+</button>
+</div>
+</div>
+</div>
+<div id=lock-screen class="fixed inset-0 z-[9999] bg-[#0f172a] flex flex-col items-center justify-center transition-all duration-500">
+<div class="text-center mb-8 animate-pulse">
+<div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-600 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+<i class="fa-solid fa-lock text-3xl text-emerald-500"></i>
+</div>
+<h2 id=lock-title class="text-2xl font-bold text-white tracking-widest">
+LOCKED
+</h2>
+<p id=lock-msg class="text-sm text-slate-400 mt-2">
+Masukkan PIN Keamanan
+</p>
+</div>
+<div class="flex gap-4 mb-10">
+<div class="pin-dot w-4 h-4 rounded-full border-2 border-slate-500 transition-all duration-200"></div>
+<div class="pin-dot w-4 h-4 rounded-full border-2 border-slate-500 transition-all duration-200"></div>
+<div class="pin-dot w-4 h-4 rounded-full border-2 border-slate-500 transition-all duration-200"></div>
+<div class="pin-dot w-4 h-4 rounded-full border-2 border-slate-500 transition-all duration-200"></div>
+<div class="pin-dot w-4 h-4 rounded-full border-2 border-slate-500 transition-all duration-200"></div>
+<div class="pin-dot w-4 h-4 rounded-full border-2 border-slate-500 transition-all duration-200"></div>
+</div>
+<div class="grid grid-cols-3 gap-6 max-w-[280px]">
+<button onclick=inputPin(1) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+1
+</button>
+<button onclick=inputPin(2) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+2
+</button>
+<button onclick=inputPin(3) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+3
+</button>
+<button onclick=inputPin(4) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+4
+</button>
+<button onclick=inputPin(5) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+5
+</button>
+<button onclick=inputPin(6) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+6
+</button>
+<button onclick=inputPin(7) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+7
+</button>
+<button onclick=inputPin(8) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+8
+</button>
+<button onclick=inputPin(9) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+9
+</button>
+<button onclick=deletePin() class="w-16 h-16 flex items-center justify-center text-red-400 hover:text-red-300 active:scale-90 transition">
+<i class="fa-solid fa-delete-left text-2xl"></i>
+</button>
+<button onclick=inputPin(0) class="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold border border-slate-600 shadow-lg active:scale-90 transition">
+0
+</button>
+<button onclick=verifyBiometric() class="w-16 h-16 flex items-center justify-center text-emerald-400 hover:text-emerald-300 active:scale-90 transition rounded-full hover:bg-slate-800/50">
+<i class="fa-solid fa-fingerprint text-3xl"></i>
+</button>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script> 
+<script src="logic.js"></script>
+</body>
+</html>
