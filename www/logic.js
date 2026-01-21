@@ -1,3 +1,4 @@
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 import { NativeBiometric } from "@capacitor-community/native-biometric";
 
@@ -10,7 +11,7 @@ if ("serviceWorker" in navigator) {
       // Paksa update jika ada perubahan SW
       registration.update();
     });
-
+    requestNotifyPermission();
     // TAMBAHKAN INI UNTUK MEMASTIKAN AI DIMUAT SAAT AWAL
     setTimeout(() => {
       initFaceApp();
@@ -28,6 +29,44 @@ let isBackgroundAnimationRunning = !0;
 let lastIrSentTime = 0;
 let lastHandCheck = 0;
 let isModelLoaded = false; // <--- INI YANG HILANG SEBELUMNYA
+// --- FUNGSI NOTIFIKASI HP ---
+async function requestNotifyPermission() {
+  // Minta izin notifikasi ke Android
+  const result = await LocalNotifications.requestPermissions();
+  if (result.display === "granted") {
+    console.log("Izin notifikasi diberikan!");
+  }
+}
+
+async function sendPhoneNotification(title, msg) {
+  // Cek apakah ini aplikasi HP (Native)
+  const isNative = window.Capacitor && window.Capacitor.isNative;
+
+  if (isNative) {
+    // Tampilkan Notifikasi di Status Bar HP
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title: "⚠️ PERINGATAN BAHAYA!",
+          body: msg,
+          id: new Date().getTime(), // ID unik agar tidak tertumpuk
+          schedule: { at: new Date(Date.now() + 100) }, // Tampil dalam 0.1 detik
+          sound: null, // Gunakan suara default HP
+          attachments: null,
+          actionTypeId: "",
+          extra: null,
+        },
+      ],
+    });
+  } else {
+    // Jika di Browser Laptop, pakai Alert biasa atau Notification API
+    if (Notification.permission === "granted") {
+      new Notification(title, { body: msg });
+    } else {
+      alert(title + "\n" + msg);
+    }
+  }
+}
 const HAND_CHECK_FPS = 100;
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbx81SDpAJvU7Yjc8NUrasIRxCXnhkNL9LMm1LSIXJ1ZGrWexgAZ-X9L56PXED4WCPc7/exec";
@@ -400,6 +439,12 @@ mqttClient.onMessageArrived = (msg) => {
     if (!isNaN(speed)) {
       updateFanUI(speed);
       currentFanSpeed = speed;
+      if (speed > 0) {
+        sendPhoneNotification(
+          "Kipas Menyala ❄️",
+          `Pendingin ruangan aktif pada Level ${speed}`,
+        );
+      }
     }
   } else if (msg.destinationName === mqtt_topic_schedule) {
     try {
