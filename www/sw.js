@@ -1,4 +1,4 @@
-const CACHE_NAME = "iot-smart-v15.7-fix"; // Versi dinaikkan
+const CACHE_NAME = "iot-smart-v15.8-fix"; // Versi dinaikkan
 
 const urlsToCache = [
   "./",
