@@ -1343,53 +1343,6 @@ window.execReset = async function () {
   globalModal.classList.remove("active");
   setAppStatus("Siap (Kosong)", "success");
 };
-async function loadFacesFromGitHub(isBackground = !1) {
-  try {
-    if (!isBackground) setAppStatus("Memuat Data Wajah...", "loading");
-    const uniqueUrl = `https://api.github.com/repos/${GH_USERNAME}/${GH_REPO}/contents/${GH_DB_PATH}?t=${Date.now()}`;
-    const res = await fetch(uniqueUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `token ${GH_TOKEN}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-      cache: "no-store",
-      mode: "cors",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const cleanContent = data.content.replace(/\s/g, "");
-      const decodedContent = atob(cleanContent);
-      let jsonDB;
-      try {
-        jsonDB = JSON.parse(decodedContent);
-      } catch (err) {
-        console.error("JSON Parse Error:", err);
-        jsonDB = [];
-      }
-      if (!Array.isArray(jsonDB)) jsonDB = [];
-      labeledDescriptors = jsonDB.map(
-        (i) =>
-          new faceapi.LabeledFaceDescriptors(
-            i.label,
-            i.descriptors.map((d) => new Float32Array(Object.values(d))),
-          ),
-      );
-      renderList();
-      if (!isBackground) setAppStatus("Siap", "success");
-    } else if (res.status === 404) {
-      console.log("Database wajah kosong/tidak ditemukan.");
-      labeledDescriptors = [];
-      renderList();
-      if (!isBackground) setAppStatus("Siap (Kosong)", "success");
-    } else {
-      throw new Error(`GitHub API Error: ${res.status}`);
-    }
-  } catch (e) {
-    console.error("Sync Error:", e);
-    if (!isBackground) setAppStatus("Gagal Sinkronisasi", "error");
-  }
-}
 setInterval(() => {
   loadFacesFromGitHub(!0);
 }, 10000);
@@ -3531,3 +3484,47 @@ function forceExitApp() {
     history.go(-2);
   }, 500);
 }
+// --- TARUH INI DI BARIS PALING BAWAH logic.js ---
+
+// Mengekspos fungsi ke window agar bisa dipanggil HTML (onclick)
+window.switchPage = switchPage;
+window.openRfidModal = openRfidModal;
+window.closeRfidModal = closeRfidModal;
+window.saveNewCard = saveNewCard;
+window.forceSync = forceSync;
+window.controlFan = controlFan;
+window.controlDoor = controlDoor;
+window.toggleSecurity = toggleSecurity;
+window.toggleHandCamera = toggleHandCamera;
+window.openAddDashboardModal = openAddDashboardModal;
+window.closeAddDashboardModal = closeAddDashboardModal;
+window.createNewDashboard = createNewDashboard;
+window.openDashboardDetail = openDashboardDetail;
+window.backToDashboardList = backToDashboardList;
+window.saveLearnedButton = saveLearnedButton;
+window.kirimIR_RAW = kirimIR_RAW;
+window.deleteCurrentDashboard = deleteCurrentDashboard;
+window.openEditDashboardModal = openEditDashboardModal;
+window.closeEditDashboardModal = closeEditDashboardModal;
+window.saveDashboardChanges = saveDashboardChanges;
+window.openEditButtonModal = openEditButtonModal;
+window.closeEditButtonModal = closeEditButtonModal;
+window.saveButtonChanges = saveButtonChanges;
+window.deleteCustomButton = deleteCustomButton;
+window.inputPin = inputPin;
+window.deletePin = deletePin;
+window.verifyBiometric = verifyBiometric; // <--- Ini yang error tadi
+window.resetToCamera = resetToCamera;
+window.hideOverlays = window.hideOverlays || hideOverlays;
+window.syncFacesToSheet = syncFacesToSheet;
+window.getMyLocation = getMyLocation;
+window.toggleMapSize = toggleMapSize;
+window.openScheduleModal = openScheduleModal;
+window.closeScheduleModal = closeScheduleModal;
+window.saveSchedule = saveSchedule;
+window.deleteSchedule = deleteSchedule;
+window.toggleScheduleActive = toggleScheduleActive;
+window.toggleAllDays = toggleAllDays;
+window.editSchedule = editSchedule;
+window.toggleVoiceCommand = toggleVoiceCommand;
+window.stopVoiceCommand = stopVoiceCommand;
