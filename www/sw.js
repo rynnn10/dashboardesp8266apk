@@ -1,5 +1,7 @@
-const CACHE_NAME = "iot-smart-v15.8-fix"; // Versi dinaikkan
-
+const CACHE_NAME = "iot-smart-v15.9fix"; // Versi dinaikkan
+// git add .
+// git commit -m "iot-smart-v15.9fix"
+// git push -u origin main
 const urlsToCache = [
   "./",
   "/index.html",

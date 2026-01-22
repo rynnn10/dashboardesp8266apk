@@ -3,7 +3,6 @@
   "appName": "IoT Dashboard",
   "webDir": "www",
   "server": {
-    "url": "https://dashboardesp8266.netlify.app/",
     "cleartext": true,
     "allowNavigation": [
       "rynnn10.github.io",
